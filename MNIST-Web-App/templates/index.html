@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digit Recognition</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            padding: 40px 20px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%);
+            z-index: 0;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+        }
+        
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            z-index: 1;
+        }
+        
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 26px;
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        
+        #canvas {
+            display: block;
+            margin: 0 auto 20px;
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            cursor: crosshair;
+            background: #1e293b;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: border-color 0.3s;
+        }
+
+        #canvas:hover {
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 13px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(51, 65, 85, 0.6);
+            color: #e2e8f0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: rgba(71, 85, 105, 0.8);
+            transform: translateY(-1px);
+        }
+        
+        .predict-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-color: #3b82f6;
+        }
+        
+        .predict-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .results {
+            display: none;
+            padding: 24px;
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .results.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .digit-display {
+            font-size: 52px;
+            font-weight: bold;
+            color: #3b82f6;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        
+        .confidence {
+            text-align: center;
+            color: #cbd5e1;
+            margin-bottom: 15px;
+            font-size: 15px;
+        }
+        
+        .bar {
+            height: 6px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.4s ease;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+        }
+        
+        .probs {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        
+        .prob-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        
+        .error {
+            display: none;
+            padding: 14px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .error.show {
+            display: block;
+        }
+
+        .note {
+            background: rgba(59, 130, 246, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            border-left: 3px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+    
+    <div class="container">
+        <h1>Digit Recognition</h1>
+        <p class="subtitle">Draw a number from 0-9</p>
+        
+        <div class="note">Model accuracy: 99.43%</div>
+        
+        <canvas id="canvas" width="280" height="280"></canvas>
+        
+        <div class="controls">
+            <button onclick="clearCanvas()">Clear</button>
+            <button class="predict-btn" onclick="predict()">Predict</button>
+        </div>
+        
+        <div class="results" id="results">
+            <div class="digit-display" id="digit">?</div>
+            <div class="confidence">
+                Confidence: <span id="conf">0</span>%
+            </div>
+            <div class="bar">
+                <div class="bar-fill" id="barFill"></div>
+            </div>
+            <div class="probs" id="probs"></div>
+        </div>
+        
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvas.onmousedown = (e) => {
+            drawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(
+                (e.clientX - rect.left) * (canvas.width / rect.width),
+                (e.clientY - rect.top) * (canvas.height / rect.height)
+            );
+        };
+
+        canvas.onmousemove = (e) => {
+            if (!drawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#3b82f6';
+            ctx.lineTo(
+                (e.clientX - rect.left) * (canvas.width / rect.width),
+                (e.clientY - rect.top) * (canvas.height / rect.height)
+            );
+            ctx.stroke();
+        };
+
+        canvas.onmouseup = () => drawing = false;
+        canvas.onmouseout = () => drawing = false;
+
+        function clearCanvas() {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+        }
+
+        function predict() {
+            const img = canvas.toDataURL('image/png');
+            
+            fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image: img})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResults(data);
+                }
+            })
+            .catch(err => showError(err.message));
+        }
+
+        function showResults(data) {
+            document.getElementById('digit').textContent = data.digit;
+            document.getElementById('conf').textContent = data.confidence;
+            document.getElementById('barFill').style.width = data.confidence + '%';
+            
+            let html = '';
+            data.probabilities.forEach((p, i) => {
+                html += `<div class="prob-row"><span>${i}:</span><span>${p.toFixed(1)}%</span></div>`;
+            });
+            
+            document.getElementById('probs').innerHTML = html;
+            document.getElementById('results').classList.add('show');
+            document.getElementById('error').classList.remove('show');
+        }
+
+        function showError(msg) {
+            document.getElementById('error').textContent = 'Error: ' + msg;
+            document.getElementById('error').classList.add('show');
+            document.getElementById('results').classList.remove('show');
+        }
+    </script>
+</body>
+</html>

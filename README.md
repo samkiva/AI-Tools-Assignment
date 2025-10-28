@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # AI Tools Assignment: Mastering the AI Toolkit
 
 ## Overview
@@ -72,3 +73,5 @@ Samuel Kivairu
 
 ## Date
 October 28, 2025
+=======
+>>>>>>> Stashed changes
